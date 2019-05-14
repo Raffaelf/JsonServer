@@ -1,15 +1,25 @@
 package com.example.jsonserver;
 
 import android.app.AlertDialog;
+import android.app.DownloadManager;
 import android.app.ListActivity;
 import android.app.ProgressDialog;
 import android.content.Intent;
+import android.net.http.RequestQueue;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.support.annotation.Nullable;
 import android.util.Log;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
+
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.android.volley.toolbox.StringRequest;
+import com.android.volley.toolbox.Volley;
+import com.example.jsonserver.http.ProdutoHttp;
+import com.google.gson.Gson;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
@@ -32,7 +42,9 @@ public class JsonActivity extends ListActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        new DownloadJsonAsyncTask().execute("http://10.7.4.25:3000/Pessoa");
+
+        DownloadJsonAsyncTask downloadJsonAsyncTask = new DownloadJsonAsyncTask();
+        downloadJsonAsyncTask.execute();
     }
 
     @Override
@@ -46,7 +58,7 @@ public class JsonActivity extends ListActivity {
         startActivity(intent);
     }
 
-    class DownloadJsonAsyncTask extends AsyncTask<String, Void, List<Pessoa>> {
+    public class DownloadJsonAsyncTask extends AsyncTask<String, Integer, List<Pessoa>> {
         ProgressDialog dialog;
 
         //Exibe pop-up indicando que está sendo feito o download do JSON
@@ -59,29 +71,15 @@ public class JsonActivity extends ListActivity {
         //Acessa o serviço do JSON e retorna a lista de pessoas
         @Override
         protected List<Pessoa> doInBackground(String... params) {
-            String urlString = params[0];
-            HttpClient httpclient = new DefaultHttpClient();
-            HttpGet httpget = new HttpGet(urlString);
-            try {
-                HttpResponse response = httpclient.execute(httpget);
-                HttpEntity entity = response.getEntity();
-                if (entity != null) {
-                    InputStream instream = entity.getContent();
-                    String json = getStringFromInputStream(instream);
 
-                    instream.close();
-                    List<Pessoa> pessoas = getPessoas(json);
-                    return pessoas;
-                }
-            } catch (Exception e) {
-                Log.e("Erro", "Falha ao acessar Web service ", e);
-            }
-            return null;
+            String json = new ProdutoHttp().getProdutos();
+
+            return getPessoas(json);
         }
 
         //Retorna uma lista de pessoas com as informações retornadas do JSON
         private List<Pessoa> getPessoas(String jsonString) {
-            List<Pessoa> pessoas = new ArrayList<Pessoa>();
+            List<Pessoa> pessoas = new ArrayList<>();
             try {
                 JSONArray pessoasJson = new JSONArray(jsonString);
                 JSONObject pessoa;
@@ -108,7 +106,7 @@ public class JsonActivity extends ListActivity {
             super.onPostExecute(result);
             dialog.dismiss();
             if (result.size() > 0) {
-                ArrayAdapter<Pessoa> adapter = new ArrayAdapter<Pessoa>(JsonActivity.this, android.R.layout.simple_list_item_1, result);
+                ArrayAdapter<Pessoa> adapter = new ArrayAdapter<>(JsonActivity.this, android.R.layout.simple_list_item_1, result);
                 setListAdapter(adapter);
             } else {
                 AlertDialog.Builder builder = new AlertDialog.Builder(JsonActivity.this)
